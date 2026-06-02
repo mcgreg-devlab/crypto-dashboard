@@ -6,6 +6,7 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  Tooltip,
 } from "recharts";
 
 interface CryptoData {
@@ -23,21 +24,37 @@ interface CryptoData {
   };
 }
 
+interface ChartPoint {
+  actualPrice: number;
+  normalizedValue: number;
+}
+
 export default function Home() {
   const [prices, setPrices] = useState<CryptoData | null>(null);
 
-  const [bitcoinChart, setBitcoinChart] = useState<any[]>([]);
-  const [ethereumChart, setEthereumChart] = useState<any[]>([]);
-  const [solanaChart, setSolanaChart] = useState<any[]>([]);
+  const [bitcoinChart, setBitcoinChart] = useState<ChartPoint[]>([]);
+  const [ethereumChart, setEthereumChart] = useState<ChartPoint[]>([]);
+  const [solanaChart, setSolanaChart] = useState<ChartPoint[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState("");
+
+  const normalizeChart = (prices: number[]) => {
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+
+    return prices.map((price) => ({
+      actualPrice: price,
+      normalizedValue:
+        ((price - min) / (max - min || 1)) * 100,
+    }));
+  };
 
   const fetchPrices = async () => {
     try {
       setLoading(true);
 
-      // Current Prices
+      // LIVE PRICES
       const response = await fetch(
         "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
       );
@@ -46,7 +63,7 @@ export default function Home() {
 
       setPrices(data);
 
-      // Bitcoin 7-Day Chart
+      // BITCOIN
       const bitcoinResponse = await fetch(
         "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=7"
       );
@@ -54,12 +71,14 @@ export default function Home() {
       const bitcoinData = await bitcoinResponse.json();
 
       setBitcoinChart(
-        bitcoinData.prices.map((price: number[]) => ({
-          value: price[1],
-        }))
+        normalizeChart(
+          bitcoinData.prices.map(
+            (price: number[]) => price[1]
+          )
+        )
       );
 
-      // Ethereum 7-Day Chart
+      // ETHEREUM
       const ethereumResponse = await fetch(
         "https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=7"
       );
@@ -67,12 +86,14 @@ export default function Home() {
       const ethereumData = await ethereumResponse.json();
 
       setEthereumChart(
-        ethereumData.prices.map((price: number[]) => ({
-          value: price[1],
-        }))
+        normalizeChart(
+          ethereumData.prices.map(
+            (price: number[]) => price[1]
+          )
+        )
       );
 
-      // Solana 7-Day Chart
+      // SOLANA
       const solanaResponse = await fetch(
         "https://api.coingecko.com/api/v3/coins/solana/market_chart?vs_currency=usd&days=7"
       );
@@ -80,9 +101,11 @@ export default function Home() {
       const solanaData = await solanaResponse.json();
 
       setSolanaChart(
-        solanaData.prices.map((price: number[]) => ({
-          value: price[1],
-        }))
+        normalizeChart(
+          solanaData.prices.map(
+            (price: number[]) => price[1]
+          )
+        )
       );
 
       setLastUpdated(
@@ -103,12 +126,101 @@ export default function Home() {
   }, []);
 
   const getChangeColor = (change: number) => {
-    return change >= 0 ? "text-green-600" : "text-red-600";
+    return change >= 0
+      ? "text-green-600"
+      : "text-red-600";
   };
 
   const formatChange = (change: number) => {
-    return `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`;
+    return `${change >= 0 ? "+" : ""}${change.toFixed(
+      2
+    )}%`;
   };
+
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: any) => {
+    if (
+      active &&
+      payload &&
+      payload.length
+    ) {
+      return (
+        <div className="rounded-lg border bg-white p-3 shadow-lg">
+          <p className="font-semibold">
+            $
+            {payload[0].payload.actualPrice.toLocaleString(
+              undefined,
+              {
+                maximumFractionDigits: 2,
+              }
+            )}
+          </p>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  const CryptoCard = ({
+    name,
+    symbol,
+    price,
+    change,
+    chartData,
+    color,
+  }: any) => (
+    <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
+      <h2
+        className="text-xl font-bold"
+        style={{ color }}
+      >
+        {symbol} {name}
+      </h2>
+
+      <p className="mt-4 text-4xl font-bold text-gray-900">
+        ${price.toLocaleString()}
+      </p>
+
+      <p
+        className={`mt-3 text-lg font-semibold ${getChangeColor(
+          change
+        )}`}
+      >
+        {formatChange(change)}
+      </p>
+
+      <div className="mt-6 h-32">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+        >
+          <LineChart data={chartData}>
+            <Tooltip
+              content={<CustomTooltip />}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="normalizedValue"
+              stroke={color}
+              strokeWidth={3}
+              dot={false}
+              activeDot={{
+                r: 6,
+              }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <p className="mt-2 text-xs text-gray-400">
+        Last 7 Days
+      </p>
+    </div>
+  );
 
   return (
     <main className="min-h-screen bg-slate-50 p-8">
@@ -152,110 +264,44 @@ export default function Home() {
 
         {loading ? (
           <div className="rounded-xl bg-white p-10 shadow">
-            <p className="text-lg">Loading crypto prices...</p>
+            <p className="text-lg">
+              Loading crypto prices...
+            </p>
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-3">
+            <CryptoCard
+              name="Bitcoin"
+              symbol="₿"
+              price={prices!.bitcoin.usd}
+              change={
+                prices!.bitcoin.usd_24h_change
+              }
+              chartData={bitcoinChart}
+              color="#f97316"
+            />
 
-            {/* Bitcoin */}
-            <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
-              <h2 className="text-xl font-bold text-orange-500">
-                ₿ Bitcoin
-              </h2>
+            <CryptoCard
+              name="Ethereum"
+              symbol="⟠"
+              price={prices!.ethereum.usd}
+              change={
+                prices!.ethereum.usd_24h_change
+              }
+              chartData={ethereumChart}
+              color="#3b82f6"
+            />
 
-              <p className="mt-4 text-4xl font-bold text-gray-900">
-                ${prices?.bitcoin.usd.toLocaleString()}
-              </p>
-
-              <p
-                className={`mt-3 text-lg font-semibold ${getChangeColor(
-                  prices?.bitcoin.usd_24h_change ?? 0
-                )}`}
-              >
-                {formatChange(prices?.bitcoin.usd_24h_change ?? 0)}
-              </p>
-
-              <div className="mt-6 h-32">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={bitcoinChart}>
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#f97316"
-                      strokeWidth={4}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Ethereum */}
-            <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
-              <h2 className="text-xl font-bold text-blue-500">
-                ⟠ Ethereum
-              </h2>
-
-              <p className="mt-4 text-4xl font-bold text-gray-900">
-                ${prices?.ethereum.usd.toLocaleString()}
-              </p>
-
-              <p
-                className={`mt-3 text-lg font-semibold ${getChangeColor(
-                  prices?.ethereum.usd_24h_change ?? 0
-                )}`}
-              >
-                {formatChange(prices?.ethereum.usd_24h_change ?? 0)}
-              </p>
-
-              <div className="mt-6 h-32">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={ethereumChart}>
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#3b82f6"
-                      strokeWidth={4}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Solana */}
-            <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
-              <h2 className="text-xl font-bold text-green-500">
-                ◎ Solana
-              </h2>
-
-              <p className="mt-4 text-4xl font-bold text-gray-900">
-                ${prices?.solana.usd.toLocaleString()}
-              </p>
-
-              <p
-                className={`mt-3 text-lg font-semibold ${getChangeColor(
-                  prices?.solana.usd_24h_change ?? 0
-                )}`}
-              >
-                {formatChange(prices?.solana.usd_24h_change ?? 0)}
-              </p>
-
-              <div className="mt-6 h-32">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={solanaChart}>
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke="#22c55e"
-                      strokeWidth={4}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
+            <CryptoCard
+              name="Solana"
+              symbol="◎"
+              price={prices!.solana.usd}
+              change={
+                prices!.solana.usd_24h_change
+              }
+              chartData={solanaChart}
+              color="#22c55e"
+            />
           </div>
         )}
 
