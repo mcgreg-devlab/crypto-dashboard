@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+} from "recharts";
+
 interface CryptoData {
   bitcoin: {
     usd: number;
@@ -19,6 +25,11 @@ interface CryptoData {
 
 export default function Home() {
   const [prices, setPrices] = useState<CryptoData | null>(null);
+
+  const [bitcoinChart, setBitcoinChart] = useState<any[]>([]);
+  const [ethereumChart, setEthereumChart] = useState<any[]>([]);
+  const [solanaChart, setSolanaChart] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState("");
 
@@ -26,6 +37,7 @@ export default function Home() {
     try {
       setLoading(true);
 
+      // Current Prices
       const response = await fetch(
         "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
       );
@@ -34,6 +46,45 @@ export default function Home() {
 
       setPrices(data);
 
+      // Bitcoin 7-Day Chart
+      const bitcoinResponse = await fetch(
+        "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=7"
+      );
+
+      const bitcoinData = await bitcoinResponse.json();
+
+      setBitcoinChart(
+        bitcoinData.prices.map((price: number[]) => ({
+          value: price[1],
+        }))
+      );
+
+      // Ethereum 7-Day Chart
+      const ethereumResponse = await fetch(
+        "https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=7"
+      );
+
+      const ethereumData = await ethereumResponse.json();
+
+      setEthereumChart(
+        ethereumData.prices.map((price: number[]) => ({
+          value: price[1],
+        }))
+      );
+
+      // Solana 7-Day Chart
+      const solanaResponse = await fetch(
+        "https://api.coingecko.com/api/v3/coins/solana/market_chart?vs_currency=usd&days=7"
+      );
+
+      const solanaData = await solanaResponse.json();
+
+      setSolanaChart(
+        solanaData.prices.map((price: number[]) => ({
+          value: price[1],
+        }))
+      );
+
       setLastUpdated(
         new Date().toLocaleString("en-US", {
           dateStyle: "medium",
@@ -41,7 +92,7 @@ export default function Home() {
         })
       );
     } catch (error) {
-      console.error("Error fetching prices:", error);
+      console.error("Error fetching crypto data:", error);
     } finally {
       setLoading(false);
     }
@@ -105,6 +156,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-3">
+
             {/* Bitcoin */}
             <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
               <h2 className="text-xl font-bold text-orange-500">
@@ -120,10 +172,22 @@ export default function Home() {
                   prices?.bitcoin.usd_24h_change ?? 0
                 )}`}
               >
-                {formatChange(
-                  prices?.bitcoin.usd_24h_change ?? 0
-                )}
+                {formatChange(prices?.bitcoin.usd_24h_change ?? 0)}
               </p>
+
+              <div className="mt-6 h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={bitcoinChart}>
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#f97316"
+                      strokeWidth={4}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
             {/* Ethereum */}
@@ -141,10 +205,22 @@ export default function Home() {
                   prices?.ethereum.usd_24h_change ?? 0
                 )}`}
               >
-                {formatChange(
-                  prices?.ethereum.usd_24h_change ?? 0
-                )}
+                {formatChange(prices?.ethereum.usd_24h_change ?? 0)}
               </p>
+
+              <div className="mt-6 h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={ethereumChart}>
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#3b82f6"
+                      strokeWidth={4}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
             {/* Solana */}
@@ -162,11 +238,24 @@ export default function Home() {
                   prices?.solana.usd_24h_change ?? 0
                 )}`}
               >
-                {formatChange(
-                  prices?.solana.usd_24h_change ?? 0
-                )}
+                {formatChange(prices?.solana.usd_24h_change ?? 0)}
               </p>
+
+              <div className="mt-6 h-32">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={solanaChart}>
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#22c55e"
+                      strokeWidth={4}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
+
           </div>
         )}
 
@@ -176,9 +265,9 @@ export default function Home() {
           </h2>
 
           <p className="text-gray-700">
-            This dashboard fetches live cryptocurrency prices and
-            24-hour market performance from the CoinGecko API. Built
-            with Next.js, TypeScript, and Tailwind CSS.
+            This dashboard fetches live cryptocurrency prices and real
+            7-day historical market data from the CoinGecko API.
+            Built with Next.js, TypeScript, Tailwind CSS, and Recharts.
           </p>
         </div>
 
