@@ -29,6 +29,31 @@ interface ChartPoint {
   normalizedValue: number;
 }
 
+function CustomTooltip({ active, payload }: any) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-xl">
+        <p className="text-xs font-medium text-gray-500">
+          Historical Price
+        </p>
+
+        <p className="text-base font-bold text-gray-900">
+          $
+          {payload[0].payload.actualPrice.toLocaleString(
+            undefined,
+            {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }
+          )}
+        </p>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function Home() {
   const [prices, setPrices] = useState<CryptoData | null>(null);
 
@@ -199,8 +224,22 @@ export default function Home() {
         >
           <LineChart data={chartData}>
             <Tooltip
-              content={<CustomTooltip />}
-            />
+  cursor={{ stroke: "#94a3b8", strokeWidth: 1 }}
+  contentStyle={{
+    backgroundColor: "#111827",
+    border: "none",
+    borderRadius: "10px",
+    color: "#ffffff",
+    fontWeight: "bold",
+  }}
+  formatter={(value: any, name: any, props: any) => [
+    `$${props.payload.actualPrice.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`,
+    "Price",
+  ]}
+/>
 
             <Line
               type="monotone"
